@@ -49,13 +49,12 @@ const computeScore = (talent, okrs, scoresMap, year, quarter) => {
   if (!talent?.okrs?.length) return null;
   const k = scoreKey(talent.id, year, quarter);
   const tScores = scoresMap[k] || {};
-  let wSum=0, wTotal=0;
+  let total = 0, hasAny = false;
   for (const oid of talent.okrs) {
-    const okr = okrs.find((o)=>o.id===oid);
     const s = tScores[oid];
-    if (okr && s!==undefined) { wSum+=s*okr.weight; wTotal+=okr.weight; }
+    if (s !== undefined) { total += s; hasAny = true; }
   }
-  return wTotal===0 ? null : Math.round(wSum/wTotal);
+  return hasAny ? Math.round(total) : null;
 };
 
 const computeAnnualScore = (talent, okrs, scoresMap, year) => {
@@ -566,12 +565,12 @@ export default function App() {
                   </div>
                   <button style={S.btn()} onClick={()=>openScore(t.id)}>Score / Edit</button>
                 </div>
-                {t.okrs.length>0 && <div style={{ marginTop:14, borderTop:"1px solid rgba(0,0,0,0.07)", paddingTop:14, display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:8 }}>
+                {t.okrs.length>0 && <div style={{ marginTop:14, borderTop:"1px solid rgba(0,0,0,0.07)", paddingTop:14, display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:8 }}>
                   {t.okrs.map((oid)=>{
                     const okr=okrs.find((o)=>o.id===oid); const s=(scores[k]||{})[oid]; if(!okr) return null;
-                    return <div key={oid} style={{ background:"#f5f5f7", borderRadius:8, padding:"9px 12px", border:"1px solid rgba(0,0,0,0.07)" }}>
-                      <div style={{ fontSize:11, color:"#aeaeb2" }}>{okr.name}</div>
-                      <div style={{ fontWeight:700, fontSize:18, color:s!==undefined?gradeColor(gradeOf(s)):"#aeaeb2" }}>{s??"—"}</div>
+                    return <div key={oid} style={{ background:"#f5f5f7", borderRadius:8, padding:"10px 12px", border:"1px solid rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", justifyContent:"space-between", minHeight:72 }}>
+                      <div style={{ fontSize:11, color:"#aeaeb2", lineHeight:1.4 }}>{okr.name}</div>
+                      <div style={{ fontWeight:700, fontSize:18, color:"#1d1d1f", marginTop:8 }}>{s!==undefined?`${s} / ${okr.weight}`:"—"}</div>
                     </div>;
                   })}
                 </div>}
@@ -704,45 +703,68 @@ export default function App() {
 
       {/* Talent modal */}
       <Modal open={talentModal} onClose={()=>setTalentModal(false)} title={editingTalent?"Edit Talent":"Add Talent"}
-        footer={<><button style={S.btn("secondary")} onClick={()=>setTalentModal(false)}>Cancel</button><button style={S.btn()} onClick={saveTalent}>{saving?"Saving…":(editingTalent?"Update Talent":"Save Talent")}</button></>}>
+        footer={(()=>{
+          const selW = deptOkrs(talentForm.dept).filter((o)=>talentForm.okrs.includes(o.id)).reduce((s,o)=>s+o.weight,0);
+          const canSave = talentForm.okrs.length>0 && selW===100;
+          return <><button style={S.btn("secondary")} onClick={()=>setTalentModal(false)}>Cancel</button><button style={{ ...S.btn(), opacity:canSave?1:0.4, cursor:canSave?"pointer":"not-allowed" }} onClick={canSave?saveTalent:undefined}>{saving?"Saving…":(editingTalent?"Update Talent":"Save Talent")}</button></>;
+        })()}>
         <Field label="Full Name"><Input value={talentForm.name} onChange={(v)=>setTalentForm({...talentForm,name:v})} placeholder="e.g. Amara Osei" /></Field>
         <Field label="Role / Title"><Input value={talentForm.role} onChange={(v)=>setTalentForm({...talentForm,role:v})} placeholder="e.g. Senior Associate" /></Field>
         <Field label="Department"><Sel value={talentForm.dept} onChange={(v)=>{ const autoOkrs=okrs.filter((o)=>o.dept===v).map((o)=>o.id); setTalentForm({...talentForm,dept:v,okrs:autoOkrs}); }}><option value="">— Select Department —</option>{DEPARTMENTS.map((d)=><option key={d.id} value={d.id}>{d.name}</option>)}</Sel></Field>
-        <Field label="Assign OKRs">
-          <div style={{ border:"1px solid rgba(0,0,0,0.1)", borderRadius:9, background:"#f5f5f7", maxHeight:200, overflowY:"auto" }}>
-            {!talentForm.dept && <div style={{ padding:"12px 14px", fontSize:12, color:"#aeaeb2" }}>Select a department first</div>}
-            {talentForm.dept && deptOkrs(talentForm.dept).length===0 && <div style={{ padding:"12px 14px", fontSize:12, color:"#aeaeb2" }}>No OKRs for this department yet</div>}
-            {talentForm.dept && deptOkrs(talentForm.dept).map((o)=>(
-              <label key={o.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", cursor:"pointer" }}>
-                <input type="checkbox" checked={talentForm.okrs.includes(o.id)} style={{ accentColor:"#0071e3", width:14, height:14 }}
-                  onChange={(e)=>setTalentForm({...talentForm,okrs:e.target.checked?[...talentForm.okrs,o.id]:talentForm.okrs.filter((id)=>id!==o.id)})} />
-                <div><div style={{ fontSize:13, fontWeight:500 }}>{o.name}</div><div style={{ fontSize:11, color:"#aeaeb2" }}>Weight: {o.weight}%</div></div>
-              </label>
-            ))}
-          </div>
-        </Field>
+        {(()=>{
+          const selectedOkrs = deptOkrs(talentForm.dept).filter((o)=>talentForm.okrs.includes(o.id));
+          const totalWeight  = selectedOkrs.reduce((sum,o)=>sum+o.weight, 0);
+          const none         = talentForm.dept && talentForm.okrs.length===0;
+          const over         = totalWeight > 100;
+          const under        = talentForm.dept && talentForm.okrs.length>0 && totalWeight < 100;
+          const exact        = totalWeight === 100;
+          const weightColor  = exact ? "#28a745" : (over||none) ? "#d62a2a" : under ? "#bf8a00" : "#aeaeb2";
+          const weightMsg    = none ? "Please select at least one OKR scorecard."
+                             : over  ? `Total weight is ${totalWeight}% — exceeds 100%. Please adjust your selection.`
+                             : under ? `Total weight is ${totalWeight}% — must equal exactly 100% before saving.`
+                             : exact ? `Total weight: 100% ✓` : "";
+          return <>
+            <Field label="Assign OKRs">
+              <div style={{ border:`1px solid ${exact?"rgba(40,167,69,0.3)":none||over?"rgba(214,42,42,0.3)":under?"rgba(191,138,0,0.3)":"rgba(0,0,0,0.1)"}`, borderRadius:9, background:"#f5f5f7", maxHeight:200, overflowY:"auto", transition:"border-color 0.2s" }}>
+                {!talentForm.dept && <div style={{ padding:"12px 14px", fontSize:12, color:"#aeaeb2" }}>Select a department first</div>}
+                {talentForm.dept && deptOkrs(talentForm.dept).length===0 && <div style={{ padding:"12px 14px", fontSize:12, color:"#aeaeb2" }}>No OKRs for this department yet</div>}
+                {talentForm.dept && deptOkrs(talentForm.dept).map((o)=>(
+                  <label key={o.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", cursor:"pointer" }}>
+                    <input type="checkbox" checked={talentForm.okrs.includes(o.id)} style={{ accentColor:"#0071e3", width:14, height:14 }}
+                      onChange={(e)=>setTalentForm({...talentForm,okrs:e.target.checked?[...talentForm.okrs,o.id]:talentForm.okrs.filter((id)=>id!==o.id)})} />
+                    <div style={{ flex:1 }}><div style={{ fontSize:13, fontWeight:500 }}>{o.name}</div><div style={{ fontSize:11, color:"#aeaeb2" }}>Weight: {o.weight}%</div></div>
+                  </label>
+                ))}
+              </div>
+            </Field>
+            {talentForm.dept && deptOkrs(talentForm.dept).length>0 && (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:-8, marginBottom:16, padding:"10px 12px", borderRadius:8, background:exact?"rgba(40,167,69,0.07)":none||over?"rgba(214,42,42,0.07)":"rgba(191,138,0,0.07)", border:`1px solid ${weightColor}22` }}>
+                <div style={{ fontSize:12.5, color:weightColor, fontWeight:500 }}>{weightMsg}</div>
+                {!none && <div style={{ fontSize:13, fontWeight:700, color:weightColor, flexShrink:0, marginLeft:12 }}>{totalWeight}%</div>}
+              </div>
+            )}
+          </>;
+        })()}
       </Modal>
 
       {/* Score modal */}
       {scoreModal && (()=>{
         const talent=talents.find((t)=>t.id===scoreModal); if(!talent) return null;
-        let wSum=0, wTotal=0;
-        for (const oid of talent.okrs) { const okr=okrs.find((o)=>o.id===oid); const s=tempScores[oid]; if(okr&&s!==undefined&&!isNaN(s)){wSum+=s*okr.weight;wTotal+=okr.weight;} }
-        const cs=wTotal>0?Math.round(wSum/wTotal):null; const cg=cs!==null?gradeOf(cs):null;
+        let previewTotal=0;
+        const allFilled = talent.okrs.length>0 && talent.okrs.every((oid)=>tempScores[oid]!==undefined&&!isNaN(tempScores[oid]));
+        for (const oid of talent.okrs) { const s=tempScores[oid]; if(s!==undefined&&!isNaN(s)) previewTotal+=s; }
+        const cs=allFilled?Math.round(previewTotal):null; const cg=cs!==null?gradeOf(cs):null;
         return <Modal open={!!scoreModal} onClose={()=>setScoreModal(null)} title={`Score — ${talent.name} · ${activeYear} Q${activeQuarter}`}
           footer={<><button style={S.btn("secondary")} onClick={()=>setScoreModal(null)}>Cancel</button><button style={S.btn()} onClick={saveScoreModal}>{saving?"Saving…":"Save Scores"}</button></>}>
           {talent.okrs.length===0 && <div style={{ color:"#aeaeb2", fontSize:13 }}>No OKRs assigned to this talent.</div>}
           {talent.okrs.map((oid)=>{
             const okr=okrs.find((o)=>o.id===oid); if(!okr) return null;
-            const val=tempScores[oid]??""; const g=val!==""?gradeOf(parseInt(val)):null;
+            const val=tempScores[oid]??"";
             return <div key={oid} style={S.formGroup}>
               <label style={S.label}>{okr.name} <span style={{ color:"#aeaeb2", fontWeight:400 }}>(Weight: {okr.weight}%)</span></label>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <input type="number" min="0" max="100" value={val} placeholder="0–100"
-                  onChange={(e)=>{ const n=Math.min(100,Math.max(0,parseInt(e.target.value))); setTempScores({...tempScores,[oid]:isNaN(n)?undefined:n}); }}
-                  style={{ ...S.input, width:80 }} />
-                {g && <div style={S.grade(g)}>{g}</div>}
-              </div>
+              <input type="number" min="0" max={okr.weight} value={val} placeholder={`0–${okr.weight}`}
+                onChange={(e)=>{ const n=Math.min(okr.weight,Math.max(0,parseInt(e.target.value))); setTempScores({...tempScores,[oid]:isNaN(n)?undefined:n}); }}
+                style={{ ...S.input, width:80 }} />
             </div>;
           })}
           <div style={{ marginTop:14, padding:"14px 16px", background:"#f5f5f7", borderRadius:10, border:"1px solid rgba(0,0,0,0.07)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
