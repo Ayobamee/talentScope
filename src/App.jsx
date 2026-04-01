@@ -6,6 +6,58 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+// ─── auth helpers ────────────────────────────────────────────
+const LoginPage = ({ onLogin }) => {
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setError(error.message); setLoading(false); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f5f5f7", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Geist',-apple-system,BlinkMacSystemFont,sans-serif", WebkitFontSmoothing:"antialiased" }}>
+      <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", borderRadius:20, padding:"40px 44px", width:400, maxWidth:"90vw", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
+        <div style={{ marginBottom:32 }}>
+          <div style={{ fontWeight:700, fontSize:18, color:"#1d1d1f", letterSpacing:"-0.3px", marginBottom:4 }}>
+            TalentScope<span style={{ display:"inline-block", width:7, height:7, background:"#0071e3", borderRadius:"50%", marginLeft:3, marginBottom:1 }} />
+          </div>
+          <div style={{ fontSize:13, color:"#aeaeb2" }}>Sign in to continue</div>
+        </div>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:12.5, color:"#6e6e73", marginBottom:6, fontWeight:500 }}>Email</label>
+            <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="you@company.com" required
+              style={{ width:"100%", background:"#f5f5f7", border:"1px solid rgba(0,0,0,0.13)", borderRadius:9, padding:"10px 12px", color:"#1d1d1f", fontFamily:"inherit", fontSize:13.5, outline:"none", boxSizing:"border-box" }} />
+          </div>
+          <div style={{ marginBottom:22 }}>
+            <label style={{ display:"block", fontSize:12.5, color:"#6e6e73", marginBottom:6, fontWeight:500 }}>Password</label>
+            <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="••••••••" required
+              style={{ width:"100%", background:"#f5f5f7", border:"1px solid rgba(0,0,0,0.13)", borderRadius:9, padding:"10px 12px", color:"#1d1d1f", fontFamily:"inherit", fontSize:13.5, outline:"none", boxSizing:"border-box" }} />
+          </div>
+          {error && (
+            <div style={{ background:"rgba(214,42,42,0.07)", border:"1px solid rgba(214,42,42,0.2)", borderRadius:8, padding:"10px 12px", fontSize:12.5, color:"#d62a2a", marginBottom:16 }}>
+              {error}
+            </div>
+          )}
+          <button type="submit" disabled={loading}
+            style={{ width:"100%", background:"#0071e3", color:"#fff", border:"none", borderRadius:980, padding:"11px 0", fontSize:14, fontWeight:500, cursor:loading?"not-allowed":"pointer", opacity:loading?0.7:1, fontFamily:"inherit", transition:"all 0.15s" }}>
+            {loading ? "Signing in…" : "Sign In"}
+          </button>
+        </form>
+        <div style={{ marginTop:20, fontSize:12, color:"#aeaeb2", textAlign:"center", lineHeight:1.6 }}>
+          Access is by invitation only.<br/>Contact your HR administrator to get access.
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── constants ───────────────────────────────────────────────
 const QUARTERS = [1, 2, 3, 4];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -171,6 +223,7 @@ function RecommendationCard({ annualData }) {
 
 // ─── main app ────────────────────────────────────────────────
 export default function App() {
+  const [session,  setSession]  = useState(undefined); // undefined = checking, null = logged out
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [tab,      setTab]      = useState("dashboard");
@@ -201,6 +254,13 @@ export default function App() {
 
   const showToast = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(null),2400); };
 
+  // ── auth listener ───────────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
   // ── load ────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -223,6 +283,11 @@ export default function App() {
       setLoading(false);
     })();
   }, []);
+
+  // show nothing while checking auth
+  if (session === undefined) return null;
+  // show login page if not authenticated
+  if (!session) return <LoginPage />;
 
   if (loading) return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#f5f5f7", gap:12 }}>
@@ -345,8 +410,14 @@ export default function App() {
           <NavItem id="rankings"  label="Rankings"       icon={<path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/>} />
           <NavItem id="annual"    label="Annual Review"  icon={<path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>} />
         </div>
-        <div style={{ padding:"12px 20px", fontSize:11, color:"#aeaeb2", display:"flex", alignItems:"center", gap:7, minHeight:36 }}>
-          {saving && <><Spinner size={10} color="#0071e3" /><span>Saving…</span></>}
+        <div style={{ padding:"12px 20px", borderTop:"1px solid rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize:11, color:"#aeaeb2", marginBottom:6, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{session?.user?.email}</div>
+          <button onClick={()=>supabase.auth.signOut()} style={{ display:"flex", alignItems:"center", gap:7, background:"none", border:"none", cursor:"pointer", color:"#6e6e73", fontSize:12.5, fontFamily:"inherit", padding:0, transition:"color 0.15s" }}
+            onMouseEnter={(e)=>e.currentTarget.style.color="#d62a2a"} onMouseLeave={(e)=>e.currentTarget.style.color="#6e6e73"}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Sign Out
+          </button>
+          {saving && <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8, fontSize:11, color:"#aeaeb2" }}><Spinner size={10} color="#0071e3" /><span>Saving…</span></div>}
         </div>
       </aside>
 
