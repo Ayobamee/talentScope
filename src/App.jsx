@@ -760,7 +760,7 @@ export default function App() {
         </>}
 
         <div style={{ padding:"28px 36px 20px", borderTop:"1px solid rgba(0,0,0,0.06)", marginTop:8 }}>
-          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>TBL</span></div>
+          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>T.B.L</span></div>
         </div>
       </main>
 
