@@ -843,10 +843,13 @@ export default function App() {
                 onChange={(e)=>{
                   const v = e.target.value;
                   if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                    setRawInputs({...rawInputs,[oid]:v});
                     const n = parseFloat(v);
-                    if (!isNaN(n)) setTempScores({...tempScores,[oid]:Math.min(okr.weight,Math.max(0,n))});
-                    else setTempScores({...tempScores,[oid]:undefined});
+const clamped = !isNaN(n) ? Math.min(okr.weight, Math.max(0, n)) : undefined;
+const display = !isNaN(n) && n > okr.weight ? String(okr.weight) : v;
+setRawInputs({...rawInputs,[oid]:display});
+if (clamped !== undefined) setTempScores({...tempScores,[oid]:clamped});
+else setTempScores({...tempScores,[oid]:undefined});
+               
                   }
                 }}
                 style={{ ...S.input, width:80 }} />
