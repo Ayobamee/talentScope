@@ -1,3 +1,4 @@
+import { gradeOf, gradeColor, computeScore, computeAnnualScore, scoreKey } from "./utils";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
