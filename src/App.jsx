@@ -250,6 +250,7 @@ export default function App() {
   const [okrForm,    setOkrForm]    = useState({ name:"", description:"", dept:"", weight:"100" });
   const [talentForm, setTalentForm] = useState({ name:"", role:"", dept:"", okrs:[] });
   const [tempScores, setTempScores] = useState({});
+  const [rawInputs,  setRawInputs]  = useState({});
   const [sortDir,    setSortDir]    = useState("desc");
 
   const showToast = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(null),2400); };
@@ -358,7 +359,9 @@ export default function App() {
   // ── Score actions ────────────────────────────────────────────
   const openScore = (tid) => {
     const k=scoreKey(tid,activeYear,activeQuarter);
-    setTempScores({...(scores[k]||{})});
+    const existing = scores[k]||{};
+    setTempScores({...existing});
+    setRawInputs(Object.fromEntries(Object.entries(existing).map(([k,v])=>[k,String(v)])));
     setScoreModal(tid);
   };
   const saveScoreModal = async () => {
@@ -760,7 +763,7 @@ export default function App() {
         </>}
 
         <div style={{ padding:"28px 36px 20px", borderTop:"1px solid rgba(0,0,0,0.06)", marginTop:8 }}>
-          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>TCL</span></div>
+          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>T.B.L</span></div>
         </div>
       </main>
 
@@ -833,12 +836,20 @@ export default function App() {
           {talent.okrs.length===0 && <div style={{ color:"#aeaeb2", fontSize:13 }}>No OKRs assigned to this talent.</div>}
           {talent.okrs.map((oid)=>{
             const okr=okrs.find((o)=>o.id===oid); if(!okr) return null;
-            const val=tempScores[oid]??"";
+            const raw = rawInputs[oid] ?? "";
             return <div key={oid} style={S.formGroup}>
               <label style={S.label}>{okr.name} <span style={{ color:"#aeaeb2", fontWeight:400 }}>(Weight: {okr.weight}%)</span></label>
-             <input type="text" inputMode="decimal" value={val} placeholder={`0–${okr.weight}`}
-  onChange={(e)=>{ const raw=e.target.value; if(raw===""||raw==="."||raw==="-"){setTempScores({...tempScores,[oid]:raw==""?undefined:raw});return;} const n=parseFloat(raw); if(!isNaN(n)){const clamped=Math.min(okr.weight,Math.max(0,n));setTempScores({...tempScores,[oid]:clamped});} }}
-  style={{ ...S.input, width:80 }} />
+              <input type="text" inputMode="decimal" value={raw} placeholder={`0–${okr.weight}`}
+                onChange={(e)=>{
+                  const v = e.target.value;
+                  if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                    setRawInputs({...rawInputs,[oid]:v});
+                    const n = parseFloat(v);
+                    if (!isNaN(n)) setTempScores({...tempScores,[oid]:Math.min(okr.weight,Math.max(0,n))});
+                    else setTempScores({...tempScores,[oid]:undefined});
+                  }
+                }}
+                style={{ ...S.input, width:80 }} />
             </div>;
           })}
           <div style={{ marginTop:14, padding:"14px 16px", background:"#f5f5f7", borderRadius:10, border:"1px solid rgba(0,0,0,0.07)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
