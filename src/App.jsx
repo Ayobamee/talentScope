@@ -1,3 +1,4 @@
+import { gradeOf, gradeColor, computeScore, computeAnnualScore, scoreKey } from "./utils";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -84,8 +85,6 @@ const DEPARTMENTS = [
 // ─── helpers ─────────────────────────────────────────────────
 const uid = () => "_" + Math.random().toString(36).slice(2, 9);
 const initials = (n) => n.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-const gradeOf = (s) => s >= 70 ? "A" : s >= 60 ? "B" : s >= 50 ? "C" : s >= 40 ? "D" : "F";
-const gradeColor = (g) => ({ A:"#28a745", B:"#0071e3", C:"#bf8a00", D:"#d4622a", F:"#d62a2a" }[g] || "#aeaeb2");
 const gradeBg   = (g) => ({ A:"rgba(40,167,69,0.09)", B:"rgba(0,113,227,0.09)", C:"rgba(191,138,0,0.09)", D:"rgba(212,98,42,0.09)", F:"rgba(214,42,42,0.09)" }[g] || "#f5f5f7");
 
 const AVATAR_PAIRS = [
@@ -95,27 +94,7 @@ const AVATAR_PAIRS = [
 const avatarPair = (id) => { let h=0; for (const c of id) h=(h*31+c.charCodeAt(0))%AVATAR_PAIRS.length; return AVATAR_PAIRS[h]; };
 
 // scores shape: { "talentId:year:quarter": { okrId: score } }
-const scoreKey = (tid, year, quarter) => `${tid}:${year}:${quarter}`;
 
-const computeScore = (talent, okrs, scoresMap, year, quarter) => {
-  if (!talent?.okrs?.length) return null;
-  const k = scoreKey(talent.id, year, quarter);
-  const tScores = scoresMap[k] || {};
-  let total = 0, hasAny = false;
-  for (const oid of talent.okrs) {
-    const s = tScores[oid];
-    if (s !== undefined) { total += s; hasAny = true; }
-  }
-  return hasAny ? Math.round(total * 10) / 10 : null;
-};
-
-const computeAnnualScore = (talent, okrs, scoresMap, year) => {
-  const qScores = QUARTERS.map((q) => computeScore(talent, okrs, scoresMap, year, q));
-  const filled = qScores.filter((s) => s!==null);
-  if (filled.length===0) return { scores: qScores, avg: null, complete: false };
-  const avg = Math.round(filled.reduce((a,b)=>a+b,0)/filled.length);
-  return { scores: qScores, avg, complete: filled.length===4 };
-};
 
 // ─── styles ──────────────────────────────────────────────────
 const S = {
