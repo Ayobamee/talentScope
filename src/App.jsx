@@ -836,9 +836,9 @@ export default function App() {
             const val=tempScores[oid]??"";
             return <div key={oid} style={S.formGroup}>
               <label style={S.label}>{okr.name} <span style={{ color:"#aeaeb2", fontWeight:400 }}>(Weight: {okr.weight}%)</span></label>
-              <input type="number" min="0" max={okr.weight} value={val} placeholder={`0–${okr.weight}`}
-                onChange={(e)=>{ const n=Math.min(okr.weight,Math.max(0,parseInt(e.target.value))); setTempScores({...tempScores,[oid]:isNaN(n)?undefined:n}); }}
-                style={{ ...S.input, width:80 }} />
+             <input type="text" inputMode="decimal" value={val} placeholder={`0–${okr.weight}`}
+  onChange={(e)=>{ const raw=e.target.value; if(raw===""||raw==="."||raw==="-"){setTempScores({...tempScores,[oid]:raw==""?undefined:raw});return;} const n=parseFloat(raw); if(!isNaN(n)){const clamped=Math.min(okr.weight,Math.max(0,n));setTempScores({...tempScores,[oid]:clamped});} }}
+  style={{ ...S.input, width:80 }} />
             </div>;
           })}
           <div style={{ marginTop:14, padding:"14px 16px", background:"#f5f5f7", borderRadius:10, border:"1px solid rgba(0,0,0,0.07)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
