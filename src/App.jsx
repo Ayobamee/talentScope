@@ -106,7 +106,7 @@ const computeScore = (talent, okrs, scoresMap, year, quarter) => {
     const s = tScores[oid];
     if (s !== undefined) { total += s; hasAny = true; }
   }
-  return hasAny ? Math.round(total) : null;
+  return hasAny ? Math.round(total * 10) / 10 : null;
 };
 
 const computeAnnualScore = (talent, okrs, scoresMap, year) => {
@@ -760,7 +760,7 @@ export default function App() {
         </>}
 
         <div style={{ padding:"28px 36px 20px", borderTop:"1px solid rgba(0,0,0,0.06)", marginTop:8 }}>
-          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>T.B.L</span></div>
+          <div style={{ fontSize:11, color:"#aeaeb2", letterSpacing:"0.2px" }}>Powered by <span style={{ fontWeight:600, color:"#6e6e73" }}>TCL</span></div>
         </div>
       </main>
 
@@ -827,7 +827,7 @@ export default function App() {
         let previewTotal=0;
         const allFilled = talent.okrs.length>0 && talent.okrs.every((oid)=>tempScores[oid]!==undefined&&!isNaN(tempScores[oid]));
         for (const oid of talent.okrs) { const s=tempScores[oid]; if(s!==undefined&&!isNaN(s)) previewTotal+=s; }
-        const cs=allFilled?Math.round(previewTotal):null; const cg=cs!==null?gradeOf(cs):null;
+        const cs=allFilled?Math.round(previewTotal*10)/10:null; const cg=cs!==null?gradeOf(cs):null;
         return <Modal open={!!scoreModal} onClose={()=>setScoreModal(null)} title={`Score — ${talent.name} · ${activeYear} Q${activeQuarter}`}
           footer={<><button style={S.btn("secondary")} onClick={()=>setScoreModal(null)}>Cancel</button><button style={S.btn()} onClick={saveScoreModal}>{saving?"Saving…":"Save Scores"}</button></>}>
           {talent.okrs.length===0 && <div style={{ color:"#aeaeb2", fontSize:13 }}>No OKRs assigned to this talent.</div>}
