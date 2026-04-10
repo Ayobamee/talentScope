@@ -338,9 +338,13 @@ export default function App() {
   // ── Score actions ────────────────────────────────────────────
   const openScore = (tid) => {
     const k=scoreKey(tid,activeYear,activeQuarter);
-    const existing = scores[k]||{};
-    setTempScores({...existing});
-    setRawInputs(Object.fromEntries(Object.entries(existing).map(([k,v])=>[k,String(v)])));
+   const existing = scores[k]||{};
+setTempScores({...existing});
+setRawInputs(Object.fromEntries(
+  Object.entries(existing)
+    .filter(([k,v]) => v !== undefined && v !== null)
+    .map(([k,v]) => [k, String(v)])
+));
     setScoreModal(tid);
   };
   const saveScoreModal = async () => {
@@ -826,7 +830,7 @@ export default function App() {
 const clamped = !isNaN(n) ? Math.min(okr.weight, Math.max(0, n)) : undefined;
 const display = !isNaN(n) && n > okr.weight ? String(okr.weight) : v;
 setRawInputs({...rawInputs,[oid]:display});
-if (clamped !== undefined) setTempScores({...tempScores,[oid]:clamped});
+if (clamped !== undefined && !isNaN(clamped)) setTempScores({...tempScores,[oid]:clamped});
 else setTempScores({...tempScores,[oid]:undefined});
                
                   }
